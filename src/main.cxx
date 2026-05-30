@@ -7,6 +7,8 @@
 
 #include "search_naive.hxx"
 #include "search_kmp.hxx"
+#include "search_horspool.hxx"
+#include "search_boyer_moore.hxx"
 
 int main(void)
 {
@@ -64,6 +66,14 @@ int main(void)
 	std::cout << std::endl;
 	std::vector<size_t> r = search_kmp(s2, "ld");
 	print(r);
+	std::cout << std::endl;
+
+	std::vector<size_t> h = search_horspool(s2, "ld");
+	print(h);
+	std::cout << std::endl;
+
+	std::vector<size_t> bm = search_boyer_moore(s2, "ld");
+	print(bm);
 	std::cout << std::endl;
 
 	return 0;

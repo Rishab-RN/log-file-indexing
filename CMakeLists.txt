@@ -58,6 +58,34 @@ target_sources(InvertedIndex
             include/InvertedIndex.hxx
 )
 
+add_library(search_horspool)
+
+target_sources(search_horspool
+    PRIVATE
+    src/search_horspool.cxx
+    
+    PUBLIC
+        FILE_SET HEADERS
+        BASE_DIRS
+            include
+        FILES
+            include/search_horspool.hxx
+)
+
+add_library(search_boyer_moore)
+
+target_sources(search_boyer_moore
+    PRIVATE
+    src/search_boyer_moore.cxx
+    
+    PUBLIC
+        FILE_SET HEADERS
+        BASE_DIRS
+            include
+        FILES
+            include/search_boyer_moore.hxx
+)
+
 add_executable(main)
 
 target_sources(main
@@ -71,4 +99,6 @@ target_link_libraries(main
     InvertedIndex
     search_naive
     search_kmp
+    search_horspool
+    search_boyer_moore
 )
