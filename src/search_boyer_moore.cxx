@@ -1,82 +1,49 @@
 #include "search_boyer_moore.hxx"
-#include <algorithm>
-
-static std::vector<int> BadCharTable(const std::string& pattern)
-{
-    int m = pattern.size();
-    std::vector<int> BadChar(256, -1);
-
-    for(int j = 0; j < m; j++)
-        BadChar[static_cast<unsigned char>(pattern[j])] = j;
-
-    return BadChar;
-}
-
-static std::vector<int> GoodSuffixTable(const std::string& pattern)
-{
-    int m = pattern.size();
-    std::vector<int> GoodSuffix(m + 1, 0);
-    std::vector<int> bpos(m + 2, 0);
-
-    int i = m, j = m + 1;
-    bpos[i] = j;
-
-    while(i > 0)
-    {
-        while(j <= m && pattern[i - 1] != pattern[j - 1])
-        {
-            if(GoodSuffix[j] == 0)
-                GoodSuffix[j] = j - i;
-            j = bpos[j];
-        }
-        i--;
-        j--;
-        bpos[i] = j;
-    }
-
-    j = bpos[0];
-    for(i = 0; i <= m; i++)
-    {
-        if(GoodSuffix[i] == 0)
-            GoodSuffix[i] = j;
-        if(i == j)
-            j = bpos[j];
-    }
-
-    return GoodSuffix;
-}
 
 std::vector<size_t> search_boyer_moore(const std::string& str, const std::string& pattern)
 {
+    size_t m = str.size();
+    size_t n = pattern.size();
+
     std::vector<size_t> indices;
 
-    if(pattern.empty() || str.size() < pattern.size())
+    if(n == 0 || n > m)
         return indices;
 
-    int m = pattern.size();
-    int n = str.size();
+    compute_bad_char_table(bad_char_table, pattern);
+    std::vector<size_t> good_shift = compute_good_suffix_table(pattern);
 
-    std::vector<int> BadChar   = BadCharTable(pattern);
-    std::vector<int> GoodSuffix = GoodSuffixTable(pattern);
+    size_t shift = 0;
 
-    int s = 0;
-    while(s <= n - m)
+    while(shift <= m - n)
     {
-        int j = m - 1;
+        size_t j = n;
 
-        while(j >= 0 && pattern[j] == str[s + j])
-            j--;
-
-        if(j < 0)
+        while(j > 0 && pattern[j - 1] == str[shift + j  - 1])
         {
-            indices.push_back(s);
-            s += GoodSuffix[0];
+            j--;
+        }
+
+        if(j == 0)
+        {
+            indices.push_back(shift);
+
+            shift += good_shift[0];
         }
         else
         {
-            int badCharShift    = j - BadChar[static_cast<unsigned char>(str[s + j])];
-            int goodSuffixShift = GoodSuffix[j + 1];
-            s += std::max(badCharShift, goodSuffixShift);
+            j--;
+
+            const unsigned char bad = static_cast<unsigned char>(str[shift + j]);
+
+            ptrdiff_t bad_shift = static_cast<ptrdiff_t>(j) - static_cast<ptrdiff_t>(bad_char_table[bad]);
+
+            if (bad_shift < 1)
+                bad_shift = 1;
+
+            const size_t good_suffix_shift = good_shift[j];
+
+            shift += std::max(static_cast<size_t>(bad_shift), good_suffix_shift);
         }
     }
 

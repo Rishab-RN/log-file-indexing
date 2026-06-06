@@ -67,13 +67,11 @@ int main(void)
 	std::vector<size_t> r = search_kmp(s2, "ld");
 	print(r);
 	std::cout << std::endl;
-
-	std::vector<size_t> h = search_horspool(s2, "ld");
-	print(h);
+	std::vector<size_t> q = search_horspool(s2, "ld");
+	print(q);
 	std::cout << std::endl;
-
-	std::vector<size_t> bm = search_boyer_moore(s2, "ld");
-	print(bm);
+	q = search_boyer_moore(s2, "ld");
+	print(q);
 	std::cout << std::endl;
 
 	return 0;

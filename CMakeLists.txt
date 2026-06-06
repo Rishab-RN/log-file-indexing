@@ -2,6 +2,22 @@ cmake_minimum_required(VERSION 3.23)
 
 project(log-file-indexing)
 
+add_library(config INTERFACE)
+
+target_sources(config INTERFACE
+    INTERFACE
+        FILE_SET HEADERS
+        BASE_DIRS
+            include
+        FILES
+            include/config.hxx
+)
+
+target_include_directories(config
+    INTERFACE
+        include
+)
+
 add_library(tokenize)
 
 target_sources(tokenize
@@ -101,4 +117,15 @@ target_link_libraries(main
     search_kmp
     search_horspool
     search_boyer_moore
+    config
+)
+
+target_link_libraries(search_horspool 
+    PRIVATE 
+    config
+)
+
+target_link_libraries(search_boyer_moore 
+    PRIVATE 
+    config
 )

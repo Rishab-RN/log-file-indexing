@@ -30,4 +30,9 @@ static inline void compute_lps(const std::string &pattern, std::vector<size_t>& 
     }
 }
 
+/**
+ *  search_kmp
+ *  Return the indices of all occurances of pattern withing string
+ *  Uses KMP string matching.
+ */
 std::vector<size_t> search_kmp(const std::string &str, const std::string &pattern);
