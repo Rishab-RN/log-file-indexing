@@ -2,9 +2,11 @@
 #include <fstream>
 #include <string>
 
-#include "tokenize.hxx"
-#include "InvertedIndex.hxx"
 
+#include "InvertedIndex.hxx"
+#include "Trie.hxx"
+
+#include "tokenize.hxx"
 #include "search_naive.hxx"
 #include "search_kmp.hxx"
 #include "search_horspool.hxx"
@@ -73,6 +75,26 @@ int main(void)
 	q = search_boyer_moore(s2, "ld");
 	print(q);
 	std::cout << std::endl;
+
+	Trie trie;
+
+	trie.insert("car");
+	trie.insert("card");
+	trie.insert("care");
+	trie.insert("cat");
+
+	auto words2 = trie.autocomplete("car");
+
+	for (auto& w : words2) {
+		std::cout << w << '\n';
+	}
+
+	trie.delete_word("care");
+	words2 = trie.autocomplete("car");
+
+	for (auto& w : words2) {
+		std::cout << w << '\n';
+	}
 
 	return 0;
 }

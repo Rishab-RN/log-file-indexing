@@ -102,6 +102,20 @@ target_sources(search_boyer_moore
             include/search_boyer_moore.hxx
 )
 
+add_library(Trie)
+
+target_sources(Trie
+    PRIVATE
+    src/Trie.cxx
+
+    PUBLIC
+        FILE_SET HEADERS
+        BASE_DIRS
+            include
+        FILES
+            include/Trie.hxx
+)
+
 add_executable(main)
 
 target_sources(main
@@ -118,6 +132,7 @@ target_link_libraries(main
     search_horspool
     search_boyer_moore
     config
+    Trie
 )
 
 target_link_libraries(search_horspool 
