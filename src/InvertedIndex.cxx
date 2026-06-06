@@ -50,7 +50,7 @@ const std::vector<size_t>& InvertedIndex::search(const std::string& token) const
     return (it != index.end()) ? it->second : empty;
 }
 
-std::vector<size_t> InvertedIndex::intersect(const std::vector<std::string>& tokens) const
+const std::vector<size_t> InvertedIndex::intersect(const std::vector<std::string>& tokens) const
 {
     /**
      *  This functions performs the following steps:

@@ -21,6 +21,7 @@ void Trie::insert(const std::string& word)
     }
 
     cur->is_word = true;
+    cur->frequency++;
 }
 
 bool Trie::search(const std::string& word)

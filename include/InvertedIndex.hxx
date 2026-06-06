@@ -38,7 +38,7 @@ public:
      *  Return a vector containing the intersection of all vectors that belong to tokens
      *
      */
-    std::vector<size_t> intersect(const std::vector<std::string>& tokens) const;
+    const std::vector<size_t> intersect(const std::vector<std::string>& tokens) const;
 
     /**
      *  merge

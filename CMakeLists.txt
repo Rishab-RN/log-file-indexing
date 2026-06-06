@@ -116,6 +116,34 @@ target_sources(Trie
             include/Trie.hxx
 )
 
+add_library(LogFile)
+
+target_sources(LogFile
+    PRIVATE
+        src/LogFile.cxx
+
+    PUBLIC
+        FILE_SET HEADERS
+        BASE_DIRS
+            include
+        FILES
+            include/LogFile.hxx
+)
+
+add_library(SearchEngine)
+
+target_sources(SearchEngine
+    PRIVATE
+        src/SearchEngine.cxx
+
+    PUBLIC
+        FILE_SET HEADERS
+        BASE_DIRS
+            include
+        FILES
+            include/SearchEngine.hxx
+)
+
 add_executable(main)
 
 target_sources(main
@@ -143,4 +171,12 @@ target_link_libraries(search_horspool
 target_link_libraries(search_boyer_moore 
     PRIVATE 
     config
+)
+
+target_link_libraries(SearchEngine
+    PRIVATE
+    LogFile
+    InvertedIndex
+    Trie
+    tokenize
 )

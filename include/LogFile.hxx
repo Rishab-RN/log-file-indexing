@@ -28,4 +28,9 @@ public:
      *  Gets the log at a particular index of member $logs.
      */
     const std::string& get_log(std::size_t index) const;
+
+    inline size_t size() const
+    {
+        return logs.size();
+    }
 };
