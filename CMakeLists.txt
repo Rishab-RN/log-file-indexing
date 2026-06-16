@@ -153,14 +153,7 @@ target_sources(main
 
 target_link_libraries(main
     PRIVATE
-    tokenize
-    InvertedIndex
-    search_naive
-    search_kmp
-    search_horspool
-    search_boyer_moore
-    config
-    Trie
+    SearchEngine
 )
 
 target_link_libraries(search_horspool 

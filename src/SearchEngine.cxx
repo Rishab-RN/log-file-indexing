@@ -1,4 +1,5 @@
 #include "SearchEngine.hxx"
+#include <algorithm>
 
 void SearchEngine::load(const std::string& file)
 {
@@ -6,19 +7,32 @@ void SearchEngine::load(const std::string& file)
     if (inputFile.is_open())
     {
         std::string line;
-
         while(std::getline(inputFile, line))
         {
             size_t logID = logs.add_log(line);
             std::vector<std::string> tokens = tokenize(line);
 
-            for(std::vector<std::string>::const_iterator token = tokens.begin(); token != tokens.end(); token++)
+            for(const std::string& token : tokens)
             {
-                index.add(*token, logID);
-                trie.insert(*token);
+
+                index.add(token, logID);
+
+                std::string processed_token = token;
+                
+                std::transform(processed_token.begin(), processed_token.end(), 
+                               processed_token.begin(), ::tolower);
+
+                bool alpha_only = !processed_token.empty() && std::all_of(processed_token.begin(), processed_token.end(), [](unsigned char c)
+                {
+                    return std::isalpha(c);
+                });
+
+                if(alpha_only)
+                {
+                    trie.insert(processed_token);
+                }
             }
         }
-
         index.merge();
         inputFile.close();
     }

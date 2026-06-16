@@ -1,4 +1,5 @@
 #include "Trie.hxx"
+#include <iostream>
 
 Trie::Trie()
 {
@@ -12,6 +13,7 @@ void Trie::insert(const std::string& word)
     for(size_t i = 0; i < word.size(); i++)
     {
         int j = word[i] - 'a';
+
         if(cur->children[j] == nullptr)
         {
             cur->children[j] = std::make_unique<TrieNode>();

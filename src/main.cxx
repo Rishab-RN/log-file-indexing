@@ -1,100 +1,117 @@
 #include <iostream>
-#include <fstream>
+#include <sstream>
 #include <string>
 
+#include "SearchEngine.hxx"
 
-#include "InvertedIndex.hxx"
-#include "Trie.hxx"
-
-#include "tokenize.hxx"
-#include "search_naive.hxx"
-#include "search_kmp.hxx"
-#include "search_horspool.hxx"
-#include "search_boyer_moore.hxx"
-
-int main(void)
+int main()
 {
-	
-	std::string s = "Hello world 123 ABC $6%";
-	std::vector<std::string> words = tokenize(s);
+    SearchEngine engine;
 
-	for(size_t i = 0; i < words.size(); i++)
-		std::cout << words[i] << std::endl;
+    std::string line;
 
-	InvertedIndex index;
-	for(size_t i = 0; i < words.size(); i++)
-	{
-		index.add(words[i], 1);
-		index.add(words[i], 2);
-		index.add(words[i], 3);
-	}
+    while(true)
+    {
+        std::cout << "> ";
 
-	print(index);
-	
-	index.merge();
+        if(!std::getline(std::cin, line))
+            break;
 
-	std::cout << "After merging" << std::endl;
-	print(index);
+		std::vector<std::string> tokens;
 
-	index.add("123", 4);
-	index.add("123", 5);
-	index.add("123", 6);
+		std::istringstream iss(line);
 
-	index.add("world", 5);
-	index.add("world", 6);
+		std::string token;
 
-	print(index);
+		while(iss >> token)
+		{
+			tokens.push_back(token);
+		}
 
-	index.merge();
-	print(index);
+		if(tokens.empty())
+		{
+			continue;
+		}
 
-	std::vector<size_t> res = index.search("123");
-	std::cout << "Result of search for \"123\": ";
-	print(res);
-	std::cout << std::endl;
+		if(tokens[0] == "exit")
+		{
+			break;
+		}
 
-	res = index.search("1234");
-	std::cout << "Result of search for \"1234\": ";
-	print(res);
-	std::cout << std::endl;
+		if(tokens[0] == "load")
+		{
+			if(tokens.size() < 2)
+			{
+				std::cout << "Usage: load <file>" << std::endl;
+				continue;
+			}
 
-	std::vector<std::string> s1 = {"123", "world"};
-	res = index.intersect(s1);
-	print(res);
+			engine.load(tokens[1]);
 
-	std::string s2 = "hello world old cold sold";
-	std::cout << s2 << std::endl;
-	print(search_naive(s2, "ld"));
-	std::cout << std::endl;
-	std::vector<size_t> r = search_kmp(s2, "ld");
-	print(r);
-	std::cout << std::endl;
-	std::vector<size_t> q = search_horspool(s2, "ld");
-	print(q);
-	std::cout << std::endl;
-	q = search_boyer_moore(s2, "ld");
-	print(q);
-	std::cout << std::endl;
+			std::cout << "Loaded file" << std::endl;
+		}
+		else if(tokens[0] == "search")
+		{
+			if(tokens.size() < 2)
+			{
+				std::cout
+					<< "Usage: search <token>" << std::endl;
+				continue;
+			}
 
-	Trie trie;
+			for(std::vector<std::string>::const_iterator token = tokens.begin(); token != tokens.end(); token++)
+			{
+				std::cout << *token << std::endl;
+			}
 
-	trie.insert("car");
-	trie.insert("card");
-	trie.insert("care");
-	trie.insert("cat");
+			std::vector<size_t> results = engine.search_token(tokens[1]);
 
-	auto words2 = trie.autocomplete("car");
+			engine.print_results(results);
+		}
+		else if(tokens[0] == "and")
+		{
+			if(tokens.size() < 3)
+			{
+				std::cout << "Usage: and word1 word2 ..." << std::endl;
+				continue;
+			}
 
-	for (auto& w : words2) {
-		std::cout << w << '\n';
-	}
+			std::vector<std::string> query(tokens.begin()+1, tokens.end());
+			std::vector<size_t> results = engine.search_and(query);
 
-	trie.delete_word("care");
-	words2 = trie.autocomplete("car");
+			engine.print_results(results);
+		}
+		else if(tokens[0] == "autocomplete")
+		{
+			if(tokens.size() < 2)
+			{
+				std::cout << "Usage: autocomplete <prefix>" << std::endl;
+				continue;
+			}
 
-	for (auto& w : words2) {
-		std::cout << w << '\n';
-	}
+			std::vector<std::string> words = engine.autocomplete(tokens[1]);
+
+			for(std::vector<std::string>::const_iterator word = words.begin(); word != words.end(); word++)
+			{
+				std::cout << *word << std::endl;
+			}
+		}
+		else if(tokens[0] == "help")
+		{
+			std::cout << "Commands:" << std::endl;
+			std::cout << "load <file>" << std::endl;
+			std::cout << "search <token>" << std::endl;
+			std::cout << "and <token1> <token2> ..." << std::endl;
+			std::cout << "autocomplete <prefix>" << std::endl;
+			std::cout << "help" << std::endl;
+			std::cout << "exit" << std::endl;
+		}
+		else
+		{
+			std::cout
+				<< "Unknown command\n";
+		}
+    }
 
 	return 0;
 }
