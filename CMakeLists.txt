@@ -2,6 +2,13 @@ cmake_minimum_required(VERSION 3.23)
 
 project(log-file-indexing)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_BUILD_TYPE Release)
+
+find_package(SDL2 REQUIRED)
+find_package(OpenGL REQUIRED)
+
 add_library(config INTERFACE)
 
 target_sources(config INTERFACE
@@ -149,6 +156,29 @@ add_executable(main)
 target_sources(main
     PRIVATE
         src/main.cxx
+        external/imgui/imgui.cpp
+        external/imgui/imgui_draw.cpp
+        external/imgui/imgui_tables.cpp
+        external/imgui/imgui_widgets.cpp
+
+        external/imgui/backends/imgui_impl_sdl2.cpp
+        external/imgui/backends/imgui_impl_opengl3.cpp
+)
+
+target_include_directories(main
+    PRIVATE
+        include
+
+        external/imgui
+        external/imgui/backends
+
+        ${SDL2_INCLUDE_DIRS}
+)
+
+target_link_libraries(main 
+    PRIVATE
+        SDL2::SDL2
+        OpenGL::GL
 )
 
 target_link_libraries(main
