@@ -2,6 +2,8 @@
 
 #include <fstream>
 
+#include "config.hxx"
+
 #include "LogFile.hxx"
 #include "InvertedIndex.hxx"
 #include "Trie.hxx"

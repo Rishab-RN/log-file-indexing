@@ -156,6 +156,11 @@ target_link_libraries(main
     SearchEngine
 )
 
+target_link_libraries(InvertedIndex
+    PRIVATE
+    config
+)
+
 target_link_libraries(search_horspool 
     PRIVATE 
     config

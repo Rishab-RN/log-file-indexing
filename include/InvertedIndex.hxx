@@ -17,7 +17,6 @@ class InvertedIndex
 {
 private:
     std::unordered_map<std::string, std::vector<size_t>> index;
-    std::unordered_map<std::string, std::unordered_set<size_t>> buffer;
 
 public:
     /**

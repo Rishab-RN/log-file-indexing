@@ -33,7 +33,6 @@ void SearchEngine::load(const std::string& file)
                 }
             }
         }
-        index.merge();
         inputFile.close();
     }
     else

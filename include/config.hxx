@@ -1,4 +1,4 @@
 #pragma once
 
 #define NUMBER_OF_CHARS 256
-
+#define EXPECTED_NO_OF_TOKENS 100000
