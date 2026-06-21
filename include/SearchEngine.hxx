@@ -14,6 +14,14 @@
 #include "search_horspool.hxx"
 #include "search_boyer_moore.hxx"
 
+enum class StringSearchAlgorithm
+{
+    Naive,
+    KMP,
+    Horspool,
+    BoyerMoore
+};
+
 class SearchEngine
 {
 private:
@@ -49,4 +57,12 @@ public:
 
     void print_results(const std::vector<size_t>& ids);
 
+    std::vector<size_t> search_text(const std::string& pattern, StringSearchAlgorithm algorithm);
+
+    const LogFile& get_logs() const
+    {
+        return logs;
+    }
+
 };
+

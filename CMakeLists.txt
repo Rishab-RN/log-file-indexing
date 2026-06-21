@@ -156,6 +156,14 @@ add_executable(main)
 target_sources(main
     PRIVATE
         src/main.cxx
+
+        src/Application.cxx
+
+        src/SearchEngine.cxx
+        src/InvertedIndex.cxx
+        src/Trie.cxx
+        src/LogFile.cxx
+
         external/imgui/imgui.cpp
         external/imgui/imgui_draw.cpp
         external/imgui/imgui_tables.cpp
@@ -163,6 +171,11 @@ target_sources(main
 
         external/imgui/backends/imgui_impl_sdl2.cpp
         external/imgui/backends/imgui_impl_opengl3.cpp
+
+        src/search_naive.cxx
+        src/search_kmp.cxx
+        src/search_horspool.cxx
+        src/search_boyer_moore.cxx
 )
 
 target_include_directories(main
@@ -171,8 +184,6 @@ target_include_directories(main
 
         external/imgui
         external/imgui/backends
-
-        ${SDL2_INCLUDE_DIRS}
 )
 
 target_link_libraries(main 

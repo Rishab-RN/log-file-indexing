@@ -29,6 +29,8 @@ public:
      */
     const std::string& get_log(std::size_t index) const;
 
+    const std::vector<std::string>& get_all_logs() const;
+
     inline size_t size() const
     {
         return logs.size();

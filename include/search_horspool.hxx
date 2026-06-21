@@ -1,28 +1,31 @@
 #pragma once
 
+#include <array>
 #include <string>
 #include <vector>
-#include "config.hxx"
 
-static std::vector<size_t> shift(NUMBER_OF_CHARS);
+#include "StringMatcher.hxx"
 
-/**
- *  compute_shift_table
- *  Computes the shift table for Horspool's algorithm.
- */
-static inline void compute_shift_table(std::vector<size_t>& shift, const std::string& pattern)
+class HorspoolMatcher : public StringMatcher
 {
-    std::fill(shift.begin(), shift.end(), pattern.size());
+private:
+    std::string pattern;
 
-    for(size_t i = 0; i < pattern.size() - 1; i++)
-        shift[(unsigned char)pattern[i]] = pattern.size() - i - 1;
+    std::array<size_t,256> shift;
 
-    return;
-}
+    void build_shift_table();
 
-/**
- *  search_horspool
- *  Return the indices of all occurances of pattern withing string
- *  Uses Horspool's algorithm.
- */
-std::vector<size_t> search_horspool(const std::string& str, const std::string& pattern);
+public:
+    explicit HorspoolMatcher(
+        const std::string& pattern);
+
+    bool contains(
+        const std::string& text) const override;
+
+    std::vector<size_t> find_all(
+        const std::string& text) const override;
+};
+
+std::vector<size_t> search_horspool(
+    const std::string& text,
+    const std::string& pattern);

@@ -1,5 +1,6 @@
 #include "SearchEngine.hxx"
 #include <algorithm>
+#include <memory>
 
 void SearchEngine::load(const std::string& file)
 {
@@ -67,4 +68,48 @@ void SearchEngine::print_results(const std::vector<size_t>& ids)
     }
 
     return;
+}
+
+std::vector<size_t>
+SearchEngine::search_text(
+    const std::string& pattern,
+    StringSearchAlgorithm algorithm)
+{
+    std::vector<size_t> result;
+
+    const std::vector<std::string>& all_logs =
+        logs.get_all_logs();
+
+    std::unique_ptr<StringMatcher> matcher;
+
+    switch(algorithm)
+    {
+        case StringSearchAlgorithm::Naive:
+            matcher = std::make_unique<NaiveMatcher>(pattern);
+            break;
+
+        case StringSearchAlgorithm::KMP:
+            matcher = std::make_unique<KMPMatcher>(pattern);
+            break;
+
+        case StringSearchAlgorithm::Horspool:
+            matcher = std::make_unique<HorspoolMatcher>(pattern);
+            break;
+
+        case StringSearchAlgorithm::BoyerMoore:
+            matcher = std::make_unique<BoyerMooreMatcher>(pattern);
+            break;
+    }
+
+    result.reserve(1024);
+
+    for(size_t i = 0; i < all_logs.size(); ++i)
+    {
+        if(matcher->contains(all_logs[i]))
+        {
+            result.push_back(i);
+        }
+    }
+
+    return result;
 }
