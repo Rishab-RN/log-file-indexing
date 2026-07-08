@@ -9,7 +9,7 @@ KMPMatcher::KMPMatcher(
 }
 
 bool KMPMatcher::contains(
-    const std::string& text) const
+    std::string_view text) const
 {
     if(text.size() < pattern.size())
     return false;
@@ -49,7 +49,7 @@ bool KMPMatcher::contains(
 
 std::vector<size_t>
 KMPMatcher::find_all(
-    const std::string& text) const
+    std::string_view text) const
 {
     std::vector<size_t> result;
 
@@ -89,10 +89,11 @@ KMPMatcher::find_all(
 }
 
 std::vector<size_t> search_kmp(
-    const std::string& text,
-    const std::string& pattern)
+    std::string_view text,
+    std::string_view pattern)
 {
-    KMPMatcher matcher(pattern);
+    std::string pattern_str(pattern);
+    KMPMatcher matcher(pattern_str);
 
     return matcher.find_all(text);
 }

@@ -1,6 +1,9 @@
 #pragma once
 
 #include <fstream>
+#include <string>
+#include <vector>
+#include <memory>
 
 #include "config.hxx"
 
@@ -30,29 +33,10 @@ private:
     Trie trie;
 
 public:
-
-    /**
-     *  load
-     *  Reads a file and generates the data structures.
-     */
     void load(const std::string& file);
 
-    /**
-     *  search_token
-     *  Finds all logs containing a token.
-     */
     const std::vector<size_t> search_token(const std::string& token);
-
-    /**
-     *  search_and
-     *  Finds all logs containing all tokens.
-     */
     const std::vector<size_t> search_and(const std::vector<std::string>& tokens);
-
-    /**
-     *  autocomplete
-     *  Find autocomplete results for a prefix.
-     */
     std::vector<std::string> autocomplete(const std::string& prefix);
 
     void print_results(const std::vector<size_t>& ids);
@@ -63,6 +47,4 @@ public:
     {
         return logs;
     }
-
 };
-

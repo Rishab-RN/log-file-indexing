@@ -3,7 +3,7 @@
 #include <algorithm>
 
 static std::vector<size_t>
-compute_suffix(const std::string& pattern)
+compute_suffix(std::string_view pattern)
 {
     const size_t n = pattern.size();
 
@@ -46,7 +46,7 @@ compute_suffix(const std::string& pattern)
 }
 
 static std::vector<size_t>
-compute_good_suffix(const std::string& pattern)
+compute_good_suffix(std::string_view pattern)
 {
     const size_t n = pattern.size();
 
@@ -109,7 +109,7 @@ void BoyerMooreMatcher::build_good_suffix()
 }
 
 bool BoyerMooreMatcher::contains(
-    const std::string& text) const
+    std::string_view text) const
 {
     const size_t m = text.size();
     const size_t n = pattern.size();
@@ -161,7 +161,7 @@ bool BoyerMooreMatcher::contains(
 
 std::vector<size_t>
 BoyerMooreMatcher::find_all(
-    const std::string& text) const
+    std::string_view text) const
 {
     std::vector<size_t> result;
 
@@ -221,7 +221,8 @@ search_boyer_moore(
     const std::string& text,
     const std::string& pattern)
 {
-    BoyerMooreMatcher matcher(pattern);
+    std::string pattern_str(pattern);
+    BoyerMooreMatcher matcher(pattern_str);
 
     return matcher.find_all(text);
 }

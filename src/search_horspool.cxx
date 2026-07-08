@@ -23,7 +23,7 @@ void HorspoolMatcher::build_shift_table()
 }
 
 bool HorspoolMatcher::contains(
-    const std::string& text) const
+    std::string_view text) const
 {
     const size_t m = pattern.size();
     const size_t n = text.size();
@@ -59,7 +59,7 @@ bool HorspoolMatcher::contains(
 
 std::vector<size_t>
 HorspoolMatcher::find_all(
-    const std::string& text) const
+    std::string_view text) const
 {
     std::vector<size_t> result;
 
@@ -97,10 +97,11 @@ HorspoolMatcher::find_all(
 
 std::vector<size_t>
 search_horspool(
-    const std::string& text,
-    const std::string& pattern)
+    std::string_view text,
+    std::string_view pattern)
 {
-    HorspoolMatcher matcher(pattern);
+    std::string pattern_str(pattern);
+    HorspoolMatcher matcher(pattern_str);
 
     return matcher.find_all(text);
 }

@@ -15,8 +15,8 @@ public:
         const std::string& pattern);
 
     bool contains(
-        const std::string& text) const override;
+        std::string_view text) const override;
 
     std::vector<size_t> find_all(
-        const std::string& text) const override;
+        std::string_view text) const override;
 };

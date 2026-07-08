@@ -43,15 +43,15 @@ public:
     explicit KMPMatcher(const std::string& pattern);
 
     bool contains(
-        const std::string& text) const override;
+        std::string_view text) const override;
 
     std::vector<size_t> find_all(
-        const std::string& text) const override;
+        std::string_view text) const override;
 };
 
 /*
  * Legacy convenience wrapper.
  */
 std::vector<size_t> search_kmp(
-    const std::string& text,
-    const std::string& pattern);
+    std::string_view text,
+    std::string_view pattern);

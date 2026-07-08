@@ -466,8 +466,8 @@ void Application::draw_results_panel()
         ImVec2(0, 0),
         true);
 
-    const std::vector<std::string>& all_logs =
-        engine.get_logs().get_all_logs();
+    // 1. Update to auto (or const std::vector<std::string_view>&)
+    const auto& all_logs = engine.get_logs().get_all_logs();
 
     std::vector<size_t> sorted_results = results;
     std::sort(sorted_results.begin(), sorted_results.end());
@@ -484,7 +484,12 @@ void Application::draw_results_panel()
 
             ImGui::SameLine();
 
-            ImGui::TextWrapped("%s", all_logs[id].c_str());
+            // 2. Safely print the string_view using %.*s
+            // We pass the length as an int, followed by the raw data pointer.
+            ImGui::TextWrapped(
+                "%.*s", 
+                static_cast<int>(all_logs[id].length()), 
+                all_logs[id].data());
         }
         else
         {

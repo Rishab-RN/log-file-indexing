@@ -7,7 +7,7 @@ NaiveMatcher::NaiveMatcher(
 }
 
 bool NaiveMatcher::contains(
-    const std::string& text) const
+    std::string_view text) const
 {
     if(pattern.empty())
         return true;
@@ -37,7 +37,7 @@ bool NaiveMatcher::contains(
 
 std::vector<size_t>
 NaiveMatcher::find_all(
-    const std::string& text) const
+    std::string_view text) const
 {
     std::vector<size_t> result;
 
