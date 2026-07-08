@@ -1,5 +1,14 @@
 #include "Application.hxx"
 
+#ifdef _WIN32
+#include <windows.h>
+#include <commdlg.h>
+#define popen _popen
+#define pclose _pclose
+#elif defined(__linux__)
+// Linux relies on the existing run_command implementation
+#endif
+
 #include <SDL.h>
 #include <SDL_opengl.h>
 
@@ -186,48 +195,58 @@ void Application::draw_menu_bar()
 void Application::open_native_file_dialog()
 {
     dialog_error.clear();
+    std::string selected_path;
 
-    // 1. Escape the $ symbols (\\$) so Bash passes them literally to PowerShell
-    std::string ps_command =
-        "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoProfile -Sta -Command "
-        "\"Add-Type -AssemblyName System.Windows.Forms; "
-        "\\$f = New-Object System.Windows.Forms.OpenFileDialog; "
-        "\\$f.Filter = 'Log/Text files (*.log;*.txt)|*.log;*.txt|All files (*.*)|*.*'; "
-        "\\$f.Title = 'Select a log file'; "
-        "if(\\$f.ShowDialog() -eq 'OK'){ Write-Output \\$f.FileName }\" 2>/dev/null";
+#ifdef _WIN32
+    // --- NATIVE WINDOWS IMPLEMENTATION ---
+    char filename[MAX_PATH] = {0};
+    
+    OPENFILENAMEA ofn;
+    ZeroMemory(&ofn, sizeof(ofn));
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = NULL; // If you have a GLFW window handle, you can cast it here
+    
+    // Windows requires filters to be separated by null characters (\0)
+    ofn.lpstrFilter = "Log/Text files (*.log;*.txt)\0*.log;*.txt\0All files (*.*)\0*.*\0";
+    ofn.lpstrFile = filename;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.lpstrTitle = "Select a log file";
+    ofn.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
 
-    std::string windows_path = run_command(ps_command);
-
-    if(windows_path.empty())
+    if (GetOpenFileNameA(&ofn))
     {
-        // User cancelled, or powershell.exe is not reachable.
-        return;
+        selected_path = filename;
     }
 
-    // 2. Strip trailing whitespaces and \r\n emitted by PowerShell
-    windows_path.erase(windows_path.find_last_not_of(" \n\r\t") + 1);
-
-    std::string wslpath_command =
-        "wslpath -u \"" + windows_path + "\" 2>/dev/null";
-
-    std::string linux_path = run_command(wslpath_command);
-
-    if(linux_path.empty())
+#elif defined(__linux__)
+    // --- NATIVE LINUX IMPLEMENTATION ---
+    // Zenity is the standard GTK dialog tool shipped with most Linux desktop environments.
+    std::string command = 
+        "zenity --file-selection --title=\"Select a log file\" "
+        "--file-filter=\"Log/Text files | *.log *.txt\" "
+        "--file-filter=\"All files | *\" 2>/dev/null";
+    
+    selected_path = run_command(command);
+    
+    if (!selected_path.empty())
     {
-        dialog_error =
-            "Could not convert Windows path to a WSL path. "
-            "Is 'wslpath' available?";
-        return;
+        // Strip trailing newline from zenity output
+        selected_path.erase(selected_path.find_last_not_of(" \n\r\t") + 1);
+    }
+#endif
+
+    if (selected_path.empty())
+    {
+        // User cancelled the dialog, or the command failed.
+        return; 
     }
 
-    // Strip any potential trailing newlines from wslpath output
-    linux_path.erase(linux_path.find_last_not_of(" \n\r\t") + 1);
-
+    // Safely copy the selected path into your existing file_path char array
     std::snprintf(
         file_path,
         sizeof(file_path),
         "%s",
-        linux_path.c_str());
+        selected_path.c_str());
 
     load_file(file_path);
 }

@@ -192,6 +192,10 @@ target_link_libraries(main
         OpenGL::GL
 )
 
+if(WIN32)
+    target_link_libraries(main PRIVATE Comdlg32)
+endif()
+
 target_link_libraries(main
     PRIVATE
     SearchEngine
