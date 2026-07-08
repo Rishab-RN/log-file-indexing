@@ -2,12 +2,17 @@
 
 #include <string>
 #include <vector>
-#include <filesystem>
 
 #include "SearchEngine.hxx"
 
 struct SDL_Window;
 typedef void* SDL_GLContext;
+
+enum class SearchMode
+{
+    Pattern,
+    InvertedIndex
+};
 
 class Application
 {
@@ -26,6 +31,7 @@ private:
     std::vector<std::string> suggestions;
 
     int algorithm_index;
+    int search_mode_index;
 
     double last_load_time_ms;
     double last_search_time_ms;
@@ -33,10 +39,7 @@ private:
     bool has_loaded_file;
     std::string loaded_file_name;
 
-    bool show_file_browser;
-    std::filesystem::path browse_path;
-    std::vector<std::filesystem::directory_entry> browse_entries;
-    std::string browse_error;
+    std::string dialog_error;
 
 private:
     bool init();
@@ -49,10 +52,10 @@ private:
     void draw_load_panel();
     void draw_search_panel();
     void draw_results_panel();
-    void draw_file_browser();
 
-    void refresh_browse_entries();
+    void open_native_file_dialog();
     void load_file(const std::string& path);
+    void run_search();
 
 public:
     Application();

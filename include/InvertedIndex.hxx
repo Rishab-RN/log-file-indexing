@@ -30,7 +30,7 @@ public:
      *  Find the logIDs for a given token
      *  Returns an empty vector if not found. 
      */
-    const std::vector<size_t>& search(const std::string& token) const;
+    const std::vector<size_t> search(const std::string& token) const;
 
     /**
      *  intersect

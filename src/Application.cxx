@@ -4,7 +4,9 @@
 #include <SDL_opengl.h>
 
 #include <chrono>
-#include <system_error>
+#include <cstdio>
+#include <array>
+#include <sstream>
 #include <algorithm>
 
 #include "imgui.h"
@@ -19,21 +21,55 @@ static const char* ALGORITHM_NAMES[] =
     "Boyer-Moore"
 };
 
+static const char* SEARCH_MODE_NAMES[] =
+{
+    "Pattern Search (substring)",
+    "Token Search (inverted index)"
+};
+
+/**
+ *  run_command
+ *  Runs a shell command and returns its trimmed stdout.
+ *  Used to shell out to powershell.exe / wslpath on WSL.
+ */
+static std::string run_command(const std::string& cmd)
+{
+    std::array<char, 512> buffer;
+    std::string result;
+
+    FILE* pipe = popen(cmd.c_str(), "r");
+
+    if(!pipe)
+        return result;
+
+    while(fgets(buffer.data(), (int)buffer.size(), pipe) != nullptr)
+    {
+        result += buffer.data();
+    }
+
+    pclose(pipe);
+
+    while(!result.empty() &&
+          (result.back() == '\n' || result.back() == '\r' || result.back() == ' '))
+    {
+        result.pop_back();
+    }
+
+    return result;
+}
+
 Application::Application()
     : window(nullptr),
       gl_context(nullptr),
       running(true),
       algorithm_index(0),
+      search_mode_index(0),
       last_load_time_ms(0.0),
       last_search_time_ms(0.0),
-      has_loaded_file(false),
-      show_file_browser(false)
+      has_loaded_file(false)
 {
     file_path[0] = '\0';
     query[0] = '\0';
-
-    std::error_code ec;
-    browse_path = std::filesystem::current_path(ec);
 }
 
 Application::~Application()
@@ -123,8 +159,7 @@ void Application::draw_menu_bar()
         {
             if(ImGui::MenuItem("Open..."))
             {
-                show_file_browser = true;
-                refresh_browse_entries();
+                open_native_file_dialog();
             }
 
             ImGui::Separator();
@@ -141,145 +176,67 @@ void Application::draw_menu_bar()
     }
 }
 
-void Application::refresh_browse_entries()
+/**
+ *  open_native_file_dialog
+ *  Shells out to the native Windows file picker through powershell.exe,
+ *  then converts the returned Windows path to a WSL path with wslpath.
+ *  This avoids walking the filesystem ourselves (and the segfault that
+ *  came with it) and gives a real Explorer window instead.
+ */
+void Application::open_native_file_dialog()
 {
-    browse_entries.clear();
-    browse_error.clear();
+    dialog_error.clear();
 
-    std::error_code ec;
+    // 1. Escape the $ symbols (\\$) so Bash passes them literally to PowerShell
+    std::string ps_command =
+        "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoProfile -Sta -Command "
+        "\"Add-Type -AssemblyName System.Windows.Forms; "
+        "\\$f = New-Object System.Windows.Forms.OpenFileDialog; "
+        "\\$f.Filter = 'Log/Text files (*.log;*.txt)|*.log;*.txt|All files (*.*)|*.*'; "
+        "\\$f.Title = 'Select a log file'; "
+        "if(\\$f.ShowDialog() -eq 'OK'){ Write-Output \\$f.FileName }\" 2>/dev/null";
 
-    for(const std::filesystem::directory_entry& entry :
-        std::filesystem::directory_iterator(browse_path, ec))
+    std::string windows_path = run_command(ps_command);
+
+    if(windows_path.empty())
     {
-        browse_entries.push_back(entry);
-    }
-
-    if(ec)
-    {
-        browse_error = ec.message();
-    }
-
-    std::sort(
-        browse_entries.begin(),
-        browse_entries.end(),
-        [](const std::filesystem::directory_entry& a,
-           const std::filesystem::directory_entry& b)
-        {
-            bool a_dir = a.is_directory();
-            bool b_dir = b.is_directory();
-
-            if(a_dir != b_dir)
-                return a_dir > b_dir;
-
-            return a.path().filename().string() <
-                   b.path().filename().string();
-        });
-}
-
-void Application::draw_file_browser()
-{
-    if(!show_file_browser)
+        // User cancelled, or powershell.exe is not reachable.
         return;
-
-    ImGui::SetNextWindowSize(ImVec2(600, 500), ImGuiCond_FirstUseEver);
-
-    if(ImGui::Begin("Open Log File", &show_file_browser))
-    {
-        ImGui::TextUnformatted(browse_path.string().c_str());
-
-        ImGui::Separator();
-
-        if(ImGui::Button(".. (Up)"))
-        {
-            if(browse_path.has_parent_path())
-            {
-                browse_path = browse_path.parent_path();
-                refresh_browse_entries();
-            }
-        }
-
-        ImGui::SameLine();
-
-        if(ImGui::Button("Refresh"))
-        {
-            refresh_browse_entries();
-        }
-
-        if(!browse_error.empty())
-        {
-            ImGui::TextColored(
-                ImVec4(0.8f, 0.1f, 0.1f, 1.0f),
-                "%s",
-                browse_error.c_str());
-        }
-
-        ImGui::BeginChild(
-            "FileList",
-            ImVec2(0, -40),
-            true);
-
-        for(const std::filesystem::directory_entry& entry : browse_entries)
-        {
-            std::string name = entry.path().filename().string();
-
-            if(entry.is_directory())
-            {
-                std::string label = "[DIR] " + name;
-
-                if(ImGui::Selectable(label.c_str()))
-                {
-                    browse_path = entry.path();
-                    refresh_browse_entries();
-                }
-            }
-            else
-            {
-                bool selected =
-                    (name == std::filesystem::path(file_path).filename().string());
-
-                if(ImGui::Selectable(name.c_str(), selected))
-                {
-                    std::filesystem::path full = entry.path();
-
-                    std::snprintf(
-                        file_path,
-                        sizeof(file_path),
-                        "%s",
-                        full.string().c_str());
-                }
-            }
-        }
-
-        ImGui::EndChild();
-
-        ImGui::Separator();
-
-        ImGui::TextUnformatted("Selected:");
-        ImGui::SameLine();
-        ImGui::TextUnformatted(file_path);
-
-        ImGui::SameLine(ImGui::GetWindowWidth() - 110);
-
-        bool can_load = file_path[0] != '\0';
-
-        if(!can_load)
-            ImGui::BeginDisabled();
-
-        if(ImGui::Button("Load", ImVec2(90, 0)))
-        {
-            load_file(file_path);
-            show_file_browser = false;
-        }
-
-        if(!can_load)
-            ImGui::EndDisabled();
     }
 
-    ImGui::End();
+    // 2. Strip trailing whitespaces and \r\n emitted by PowerShell
+    windows_path.erase(windows_path.find_last_not_of(" \n\r\t") + 1);
+
+    std::string wslpath_command =
+        "wslpath -u \"" + windows_path + "\" 2>/dev/null";
+
+    std::string linux_path = run_command(wslpath_command);
+
+    if(linux_path.empty())
+    {
+        dialog_error =
+            "Could not convert Windows path to a WSL path. "
+            "Is 'wslpath' available?";
+        return;
+    }
+
+    // Strip any potential trailing newlines from wslpath output
+    linux_path.erase(linux_path.find_last_not_of(" \n\r\t") + 1);
+
+    std::snprintf(
+        file_path,
+        sizeof(file_path),
+        "%s",
+        linux_path.c_str());
+
+    load_file(file_path);
 }
 
 void Application::load_file(const std::string& path)
 {
+    if(path.empty())
+        return;
+
     auto start = std::chrono::high_resolution_clock::now();
 
     engine.load(path);
@@ -290,7 +247,14 @@ void Application::load_file(const std::string& path)
         std::chrono::duration<double, std::milli>(end - start).count();
 
     has_loaded_file = true;
-    loaded_file_name = std::filesystem::path(path).filename().string();
+    loaded_file_name = path;
+
+    size_t slash = loaded_file_name.find_last_of("/\\");
+
+    if(slash != std::string::npos)
+    {
+        loaded_file_name = loaded_file_name.substr(slash + 1);
+    }
 
     results.clear();
     suggestions.clear();
@@ -300,33 +264,30 @@ void Application::draw_load_panel()
 {
     ImGui::SeparatorText("Log File");
 
-    if(ImGui::Button("Browse...", ImVec2(120, 0)))
+    if(ImGui::Button("Browse... (opens Windows Explorer)", ImVec2(280, 0)))
     {
-        show_file_browser = true;
-        refresh_browse_entries();
+        open_native_file_dialog();
     }
 
     ImGui::SameLine();
-
-    ImGui::InputText(
-        "Path",
-        file_path,
-        sizeof(file_path));
-
-    ImGui::SameLine();
-
-    bool can_load = file_path[0] != '\0';
-
-    if(!can_load)
-        ImGui::BeginDisabled();
 
     if(ImGui::Button("Load"))
     {
         load_file(file_path);
     }
 
-    if(!can_load)
-        ImGui::EndDisabled();
+    ImGui::InputText(
+        "Path",
+        file_path,
+        sizeof(file_path));
+
+    if(!dialog_error.empty())
+    {
+        ImGui::TextColored(
+            ImVec4(0.8f, 0.1f, 0.1f, 1.0f),
+            "%s",
+            dialog_error.c_str());
+    }
 
     if(has_loaded_file)
     {
@@ -343,6 +304,65 @@ void Application::draw_load_panel()
     }
 }
 
+/**
+ *  run_search
+ *  Dispatches to either the inverted-index token search (single token
+ *  -> search_token, multiple whitespace-separated tokens -> search_and)
+ *  or to one of the raw string-matching algorithms over the full text.
+ */
+void Application::run_search()
+{
+    auto start = std::chrono::high_resolution_clock::now();
+
+    SearchMode mode = (search_mode_index == 0)
+        ? SearchMode::Pattern
+        : SearchMode::InvertedIndex;
+
+    if(mode == SearchMode::Pattern)
+    {
+        StringSearchAlgorithm algo;
+
+        switch(algorithm_index)
+        {
+            case 0: algo = StringSearchAlgorithm::Naive; break;
+            case 1: algo = StringSearchAlgorithm::KMP; break;
+            case 2: algo = StringSearchAlgorithm::Horspool; break;
+            default: algo = StringSearchAlgorithm::BoyerMoore; break;
+        }
+
+        results = engine.search_text(query, algo);
+    }
+    else
+    {
+        std::vector<std::string> tokens;
+        std::istringstream stream(query);
+        std::string token;
+
+        while(stream >> token)
+        {
+            tokens.push_back(token);
+        }
+
+        if(tokens.empty())
+        {
+            results.clear();
+        }
+        else if(tokens.size() == 1)
+        {
+            results = engine.search_token(tokens.front());
+        }
+        else
+        {
+            results = engine.search_and(tokens);
+        }
+    }
+
+    auto end = std::chrono::high_resolution_clock::now();
+
+    last_search_time_ms =
+        std::chrono::duration<double, std::milli>(end - start).count();
+}
+
 void Application::draw_search_panel()
 {
     ImGui::SeparatorText("Search");
@@ -350,16 +370,37 @@ void Application::draw_search_panel()
     if(!has_loaded_file)
         ImGui::BeginDisabled();
 
-    ImGui::TextUnformatted("Algorithm:");
+    ImGui::TextUnformatted("Mode:");
     ImGui::SameLine();
 
-    ImGui::SetNextItemWidth(160);
+    ImGui::SetNextItemWidth(260);
 
     ImGui::Combo(
-        "##Algorithm",
-        &algorithm_index,
-        ALGORITHM_NAMES,
-        IM_ARRAYSIZE(ALGORITHM_NAMES));
+        "##SearchMode",
+        &search_mode_index,
+        SEARCH_MODE_NAMES,
+        IM_ARRAYSIZE(SEARCH_MODE_NAMES));
+
+    if(search_mode_index == 0)
+    {
+        ImGui::SameLine();
+
+        ImGui::TextUnformatted("Algorithm:");
+        ImGui::SameLine();
+
+        ImGui::SetNextItemWidth(160);
+
+        ImGui::Combo(
+            "##Algorithm",
+            &algorithm_index,
+            ALGORITHM_NAMES,
+            IM_ARRAYSIZE(ALGORITHM_NAMES));
+    }
+    else
+    {
+        ImGui::TextDisabled(
+            "Multiple words are AND-ed together (all tokens must be present).");
+    }
 
     if(ImGui::InputText(
         "Query",
@@ -373,24 +414,7 @@ void Application::draw_search_panel()
 
     if(ImGui::Button("Search"))
     {
-        StringSearchAlgorithm algo;
-
-        switch(algorithm_index)
-        {
-            case 0: algo = StringSearchAlgorithm::Naive; break;
-            case 1: algo = StringSearchAlgorithm::KMP; break;
-            case 2: algo = StringSearchAlgorithm::Horspool; break;
-            default: algo = StringSearchAlgorithm::BoyerMoore; break;
-        }
-
-        auto start = std::chrono::high_resolution_clock::now();
-
-        results = engine.search_text(query, algo);
-
-        auto end = std::chrono::high_resolution_clock::now();
-
-        last_search_time_ms =
-            std::chrono::duration<double, std::milli>(end - start).count();
+        run_search();
     }
 
     if(!suggestions.empty())
@@ -445,7 +469,10 @@ void Application::draw_results_panel()
     const std::vector<std::string>& all_logs =
         engine.get_logs().get_all_logs();
 
-    for(size_t id : results)
+    std::vector<size_t> sorted_results = results;
+    std::sort(sorted_results.begin(), sorted_results.end());
+
+    for(size_t id : sorted_results)
     {
         size_t line_number = id + 1;
 
@@ -479,8 +506,7 @@ void Application::render()
 
     ImGuiViewport* viewport = ImGui::GetMainViewport();
 
-    ImGui::SetNextWindowPos(
-        ImVec2(viewport->WorkPos.x, viewport->WorkPos.y + 0));
+    ImGui::SetNextWindowPos(viewport->WorkPos);
     ImGui::SetNextWindowSize(viewport->WorkSize);
 
     ImGui::Begin(
@@ -501,8 +527,6 @@ void Application::render()
     draw_results_panel();
 
     ImGui::End();
-
-    draw_file_browser();
 
     ImGui::Render();
 

@@ -1,5 +1,6 @@
 #include "Trie.hxx"
 #include <iostream>
+#include <cctype>
 
 Trie::Trie()
 {
@@ -12,16 +13,17 @@ void Trie::insert(const std::string& word)
 
     for(size_t i = 0; i < word.size(); i++)
     {
-        int j = word[i] - 'a';
+        int j = std::tolower(word[i]) - 'a';
+        
+        // Skip spaces, numbers, and punctuation safely
+        if(j < 0 || j >= 26) continue; 
 
         if(cur->children[j] == nullptr)
         {
             cur->children[j] = std::make_unique<TrieNode>();
         }
-
         cur = cur->children[j].get();
     }
-
     cur->is_word = true;
     cur->frequency++;
 }
@@ -75,24 +77,29 @@ void Trie::dfs(TrieNode* node, std::string current, std::vector<std::string>& re
 std::vector<std::string> Trie::autocomplete(const std::string& prefix)
 {
     TrieNode* cur = root.get();
-
     std::vector<std::string> results;
+
+    std::string sanitized_prefix = "";
 
     for(size_t i = 0; i < prefix.size(); i++)
     {
-        int j = prefix[i] - 'a';
+        int j = std::tolower(prefix[i]) - 'a';
+        
+        // If the user types a space, we can't autocomplete a single word anymore.
+        if(j < 0 || j >= 26) return results; 
 
         if(cur->children[j] == nullptr)
             return results;
 
         cur = cur->children[j].get();
+        sanitized_prefix += std::tolower(prefix[i]);
     }
 
-    dfs(cur, prefix, results);
+    // Pass the sanitized prefix down so the DFS builds the string correctly
+    dfs(cur, sanitized_prefix, results);
 
     return results;
 }
-
 bool Trie::__delete(std::unique_ptr<TrieNode>& node, const std::string& word, int depth)
 {
     if(!node)

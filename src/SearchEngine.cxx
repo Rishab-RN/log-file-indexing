@@ -43,7 +43,7 @@ void SearchEngine::load(const std::string& file)
 }
 
 
-const std::vector<size_t>& SearchEngine::search_token(const std::string& token)
+const std::vector<size_t> SearchEngine::search_token(const std::string& token)
 {
     return index.search(token);
 }
@@ -70,10 +70,7 @@ void SearchEngine::print_results(const std::vector<size_t>& ids)
     return;
 }
 
-std::vector<size_t>
-SearchEngine::search_text(
-    const std::string& pattern,
-    StringSearchAlgorithm algorithm)
+std::vector<size_t> SearchEngine::search_text(const std::string& pattern, StringSearchAlgorithm algorithm)
 {
     std::vector<size_t> result;
 

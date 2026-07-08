@@ -41,7 +41,7 @@ public:
      *  search_token
      *  Finds all logs containing a token.
      */
-    const std::vector<size_t>& search_token(const std::string& token);
+    const std::vector<size_t> search_token(const std::string& token);
 
     /**
      *  search_and

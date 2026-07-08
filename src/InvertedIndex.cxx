@@ -43,7 +43,7 @@ void InvertedIndex::add(const std::string& token, size_t logID)
         vec.push_back(logID);
 }
 
-const std::vector<size_t>& InvertedIndex::search(const std::string& token) const
+const std::vector<size_t> InvertedIndex::search(const std::string& token) const
 {
     std::unordered_map<std::string, std::vector<size_t>>::const_iterator it = index.find(token);
 
