@@ -112,3 +112,39 @@ std::vector<size_t> SearchEngine::search_text(const std::string& pattern, String
 
     return result;
 }
+
+void SearchEngine::set_timestamp_regex(const std::string& regex_str, const std::string& format_str)
+{
+    ts_regex_str  = regex_str;
+    ts_format_str = format_str;
+
+    std::regex  re(ts_regex_str);
+    std::smatch match;
+
+    const auto& all_logs = logs.get_all_logs();
+
+    std::vector<TimestampEntry> entries;
+    entries.reserve(all_logs.size());
+
+    for(size_t i = 0; i < all_logs.size(); ++i)
+    {
+        std::string line(all_logs[i]);
+
+        if(!std::regex_search(line, match, re) || match.size() < 2)
+            continue;
+
+        time_t ts = parse_timestamp(match[1].str(), ts_format_str);
+
+        if(ts == static_cast<time_t>(-1))
+            continue;
+
+        entries.push_back({ ts, i });
+    }
+
+    seg_tree.build(entries);
+}
+
+std::vector<size_t> SearchEngine::range_query(time_t t_start, time_t t_end)
+{
+    return seg_tree.range_query(t_start, t_end);
+}

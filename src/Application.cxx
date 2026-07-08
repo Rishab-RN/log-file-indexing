@@ -33,8 +33,112 @@ static const char* ALGORITHM_NAMES[] =
 static const char* SEARCH_MODE_NAMES[] =
 {
     "Pattern Search (substring)",
-    "Token Search (inverted index)"
+    "Token Search (inverted index)",
+    "Time Range Query"
 };
+
+/**
+ *  LogPreset
+ *  A named, ready-to-use timestamp regex + strftime format pair.
+ *  format is empty ("") for Unix-epoch-integer captures.
+ */
+struct LogPreset
+{
+    const char* name;
+    const char* regex;
+    const char* format;
+    const char* hint;
+};
+
+static const LogPreset LOG_PRESETS[] =
+{
+    // Apache
+    { "Apache Error Log",
+      "\\[[A-Za-z]{3} ([A-Za-z]{3}\\s+\\d{1,2} \\d{2}:\\d{2}:\\d{2} \\d{4})\\]",
+      "%b %d %H:%M:%S %Y",
+      "[Thu Jun 09 06:07:04 2005]" },
+
+    { "Apache / Nginx Access Log",
+      "\\[(\\d{2}/[A-Za-z]{3}/\\d{4}:\\d{2}:\\d{2}:\\d{2})",
+      "%d/%b/%Y:%H:%M:%S",
+      "[10/Oct/2000:13:55:36 -0700]" },
+
+    // ISO / Datetime variants
+    { "ISO 8601 with T",
+      "(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})",
+      "%Y-%m-%dT%H:%M:%S",
+      "2024-01-15T08:00:00  (Docker, K8s, AWS, GCP)" },
+
+    { "Datetime with space",
+      "(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2})",
+      "%Y-%m-%d %H:%M:%S",
+      "2024-01-15 08:00:00  (OpenStack, Windows, HPC, Hadoop, Log4j, Zookeeper, Python)" },
+
+    // Syslog family
+    { "Syslog / Linux / Mac / OpenSSH / Cisco",
+      "([A-Za-z]{3}\\s+\\d{1,2} \\d{2}:\\d{2}:\\d{2})",
+      "%b %d %H:%M:%S",
+      "Jan 15 08:00:00  or  Dec  9 07:07:38  (no year, defaults to 1970)" },
+
+    // Nginx
+    { "Nginx Error Log",
+      "(\\d{4}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2})",
+      "%Y/%m/%d %H:%M:%S",
+      "2024/01/15 08:00:00" },
+
+    // Apache Spark
+    { "Apache Spark",
+      "(\\d{2}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2})",
+      "%y/%m/%d %H:%M:%S",
+      "15/10/18 18:01:22" },
+
+    // HDFS
+    { "HDFS / NameNode",
+      "(\\d{6} \\d{6})",
+      "%m%d%y %H%M%S",
+      "081109 203518  (MMDDYY HHMMSS)" },
+
+    // MySQL
+    { "MySQL Error Log",
+      "(\\d{6} \\d{2}:\\d{2}:\\d{2})",
+      "%y%m%d %H:%M:%S",
+      "151020 19:30:06  (YYMMDD)" },
+
+    // Android
+    { "Android Logcat",
+      "(\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2})",
+      "%m-%d %H:%M:%S",
+      "01-03 22:00:00  (no year, defaults to 1970)" },
+
+    // HealthApp
+    { "HealthApp",
+      "(\\d{8}-\\d{2}:\\d{2}:\\d{2})",
+      "%Y%m%d-%H:%M:%S",
+      "20171223-22:15:45" },
+
+    // Proxifier
+    { "Proxifier",
+      "\\[(\\d{2}\\.\\d{2} \\d{2}:\\d{2}:\\d{2})\\]",
+      "%d.%m %H:%M:%S",
+      "[03.07 18:22:33]  (DD.MM, no year)" },
+
+    // Unix Epoch (BGL, Thunderbird)
+    { "Unix Epoch (seconds)",
+      "(\\d{9,10})(?!\\d)",
+      "",
+      "1117623909  (BGL, Thunderbird)  -- format field is ignored" },
+};
+
+static const int NUM_PRESETS = (int)(sizeof(LOG_PRESETS) / sizeof(LOG_PRESETS[0]));
+
+/**
+ *  preset_getter
+ *  ImGui Combo callback: returns the display name for preset at index idx.
+ */
+static const char* preset_getter(void* data, int idx)
+{
+    return ((const LogPreset*)data)[idx].name;
+}
 
 /**
  *  run_command
@@ -75,10 +179,17 @@ Application::Application()
       search_mode_index(0),
       last_load_time_ms(0.0),
       last_search_time_ms(0.0),
-      has_loaded_file(false)
+      has_loaded_file(false),
+      ts_index_built(false),
+      ts_error_is_ok(false),
+      preset_index(0)
 {
     file_path[0] = '\0';
-    query[0] = '\0';
+    query[0]     = '\0';
+    ts_regex[0]  = '\0';
+    ts_format[0] = '\0';
+    time_from[0] = '\0';
+    time_to[0]   = '\0';
 }
 
 Application::~Application()
@@ -415,10 +526,20 @@ void Application::draw_search_panel()
             ALGORITHM_NAMES,
             IM_ARRAYSIZE(ALGORITHM_NAMES));
     }
-    else
+    else if(search_mode_index == 1)
     {
         ImGui::TextDisabled(
             "Multiple words are AND-ed together (all tokens must be present).");
+    }
+
+    // Time Range mode: end the outer disable group and delegate entirely.
+    if(search_mode_index == 2)
+    {
+        if(!has_loaded_file)
+            ImGui::EndDisabled();
+
+        draw_range_panel();
+        return;
     }
 
     if(ImGui::InputText(
@@ -581,4 +702,188 @@ int Application::run()
     }
 
     return 0;
+}
+
+void Application::draw_range_panel()
+{
+    ImGui::SeparatorText("Timestamp Index");
+
+    if(!has_loaded_file)
+        ImGui::BeginDisabled();
+
+    // Preset combo — auto-applies on selection change.
+    ImGui::SetNextItemWidth(340);
+
+    if(ImGui::Combo(
+        "##preset",
+        &preset_index,
+        preset_getter,
+        (void*)LOG_PRESETS,
+        NUM_PRESETS))
+    {
+        // Selection changed: immediately update regex + format and invalidate
+        // any previously built index so stale results cannot be returned.
+        std::snprintf(ts_regex,  sizeof(ts_regex),  "%s", LOG_PRESETS[preset_index].regex);
+        std::snprintf(ts_format, sizeof(ts_format), "%s", LOG_PRESETS[preset_index].format);
+        ts_index_built = false;
+        ts_error.clear();
+    }
+
+    ImGui::SameLine();
+
+    if(ImGui::Button("Reset##loadpreset"))
+    {
+        // Explicit reset: useful after manually editing the regex/format fields.
+        std::snprintf(ts_regex,  sizeof(ts_regex),  "%s", LOG_PRESETS[preset_index].regex);
+        std::snprintf(ts_format, sizeof(ts_format), "%s", LOG_PRESETS[preset_index].format);
+        ts_index_built = false;
+        ts_error.clear();
+    }
+
+    ImGui::SameLine();
+
+    if(ImGui::Button("Auto-Detect"))
+    {
+        const auto& all_logs = engine.get_logs().get_all_logs();
+        size_t scan_limit = std::min(all_logs.size(), (size_t)200);
+
+        int best_preset = -1;
+        int best_count  = 0;
+
+        for(int p = 0; p < NUM_PRESETS; ++p)
+        {
+            std::regex re;
+
+            try { re = std::regex(LOG_PRESETS[p].regex); }
+            catch(...) { continue; }
+
+            int count = 0;
+            std::smatch match;
+
+            for(size_t i = 0; i < scan_limit; ++i)
+            {
+                std::string line(all_logs[i]);
+
+                if(std::regex_search(line, match, re) && match.size() >= 2)
+                    ++count;
+            }
+
+            if(count > best_count)
+            {
+                best_count  = count;
+                best_preset = p;
+            }
+        }
+
+        if(best_preset >= 0 && best_count > 0)
+        {
+            preset_index = best_preset;
+            std::snprintf(ts_regex,  sizeof(ts_regex),  "%s", LOG_PRESETS[best_preset].regex);
+            std::snprintf(ts_format, sizeof(ts_format), "%s", LOG_PRESETS[best_preset].format);
+
+            ts_error      = std::string("Auto-detected: ") + LOG_PRESETS[best_preset].name +
+                            "  (" + std::to_string(best_count) + "/" +
+                            std::to_string(scan_limit) + " lines matched)";
+            ts_error_is_ok = true;
+        }
+        else
+        {
+            ts_error       = "Auto-detect found no matching format. Select a preset manually.";
+            ts_error_is_ok = false;
+        }
+    }
+
+    if(ImGui::IsItemHovered() && preset_index >= 0 && preset_index < NUM_PRESETS)
+        ImGui::SetTooltip("Example: %s", LOG_PRESETS[preset_index].hint);
+
+    ImGui::SetNextItemWidth(400);
+    ImGui::InputText("Regex (capture group 1)##tsregex", ts_regex, sizeof(ts_regex));
+
+    ImGui::SetNextItemWidth(260);
+    ImGui::InputText("Format string##tsformat",          ts_format, sizeof(ts_format));
+
+    ImGui::SameLine();
+
+    if(ImGui::Button("Build Index"))
+    {
+        ts_error.clear();
+        engine.set_timestamp_regex(ts_regex, ts_format);
+        ts_index_built = engine.has_timestamp_index();
+
+        if(ts_index_built)
+        {
+            ts_error       = std::string("Index built: ") +
+                             std::to_string(engine.timestamp_count()) + " lines indexed.";
+            ts_error_is_ok = true;
+        }
+        else
+        {
+            ts_error       = "No lines matched the regex. Check the regex and format string.";
+            ts_error_is_ok = false;
+        }
+    }
+
+    if(ts_index_built)
+    {
+        ImGui::TextDisabled("Ready. Enter a time range below and click Search.");
+    }
+    else
+    {
+        ImGui::TextDisabled("Select a preset, click Load, then click Build Index.");
+    }
+
+    ImGui::Spacing();
+    ImGui::SeparatorText("Time Range Query");
+
+    if(!ts_index_built)
+        ImGui::BeginDisabled();
+
+    ImGui::SetNextItemWidth(220);
+    ImGui::InputText("From##timefrom", time_from, sizeof(time_from));
+
+    ImGui::SameLine();
+
+    ImGui::SetNextItemWidth(220);
+    ImGui::InputText("To##timeto", time_to, sizeof(time_to));
+
+    ImGui::SameLine();
+
+    if(ImGui::Button("Search##rangesearch"))
+    {
+        auto t1 = std::chrono::high_resolution_clock::now();
+
+        time_t t_start = parse_timestamp(time_from, ts_format);
+        time_t t_end   = parse_timestamp(time_to,   ts_format);
+
+        if(t_start == static_cast<time_t>(-1) || t_end == static_cast<time_t>(-1))
+        {
+            ts_error       = "Could not parse timestamp. Use the same format as the format string.";
+            ts_error_is_ok = false;
+        }
+        else
+        {
+            ts_error.clear();
+            results = engine.range_query(t_start, t_end);
+        }
+
+        auto t2 = std::chrono::high_resolution_clock::now();
+        last_search_time_ms = std::chrono::duration<double, std::milli>(t2 - t1).count();
+    }
+
+    if(!ts_index_built)
+        ImGui::EndDisabled();
+
+    ImGui::TextDisabled("Enter timestamps in the same format as the format string above.");
+
+    if(!ts_error.empty())
+    {
+        ImVec4 color = ts_error_is_ok
+            ? ImVec4(0.1f, 0.5f, 0.1f, 1.0f)
+            : ImVec4(0.8f, 0.1f, 0.1f, 1.0f);
+
+        ImGui::TextColored(color, "%s", ts_error.c_str());
+    }
+
+    if(!has_loaded_file)
+        ImGui::EndDisabled();
 }

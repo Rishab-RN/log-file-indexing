@@ -123,6 +123,20 @@ target_sources(Trie
             include/Trie.hxx
 )
 
+add_library(SegmentTree)
+
+target_sources(SegmentTree
+    PRIVATE
+        src/SegmentTree.cxx
+
+    PUBLIC
+        FILE_SET HEADERS
+        BASE_DIRS
+            include
+        FILES
+            include/SegmentTree.hxx
+)
+
 add_library(LogFile)
 
 target_sources(LogFile
@@ -221,5 +235,27 @@ target_link_libraries(SearchEngine
     LogFile
     InvertedIndex
     Trie
+    SegmentTree
     tokenize
+)
+
+# ── Regression test binary ────────────────────────────────────────────────
+# Links only SegmentTree (no SDL / ImGui / OpenGL) and runs headlessly.
+# Usage: .\build\test_formats.exe
+
+add_executable(test_formats)
+
+target_sources(test_formats
+    PRIVATE
+        src/test_formats.cxx
+)
+
+target_include_directories(test_formats
+    PRIVATE
+        include
+)
+
+target_link_libraries(test_formats
+    PRIVATE
+        SegmentTree
 )
