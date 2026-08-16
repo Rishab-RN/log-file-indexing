@@ -13,7 +13,7 @@ class TrieNode
 public:
     std::unique_ptr<TrieNode> children[26] = {nullptr};
     bool is_word = false;
-    size_t frequency;
+    size_t frequency = 0;
 };
 
 /**

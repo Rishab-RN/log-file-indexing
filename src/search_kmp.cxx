@@ -1,35 +1,99 @@
 #include "search_kmp.hxx"
 
-std::vector<size_t> search_kmp(const std::string& str, const std::string& pattern)
+KMPMatcher::KMPMatcher(
+    const std::string& pattern)
+    : pattern(pattern),
+      lps(pattern.size())
 {
-    size_t i = 0, j = 0;
+    compute_lps(pattern, lps);
+}
 
-    std::vector<size_t> lps(pattern.size());
-    std::vector<size_t> result;
+bool KMPMatcher::contains(
+    std::string_view text) const
+{
+    if(text.size() < pattern.size())
+    return false;
 
-    compute_lps(pattern, lps);    
+    if(pattern.empty())
+        return true;
 
-    while(i < str.size())
+    size_t i = 0;
+    size_t j = 0;
+
+    const size_t n = text.size();
+    const size_t m = pattern.size();
+
+    while(i < n)
     {
-        if(str[i] == pattern[j])
+        if(text[i] == pattern[j])
         {
-            i++;
-            j++;
+            ++i;
+            ++j;
 
-            if(j == pattern.size())
-            {
-                result.push_back(i - j);
-                j = lps[j - 1];
-            }
+            if(j == m)
+                return true;
+        }
+        else if(j)
+        {
+            j = lps[j - 1];
         }
         else
         {
-            if(j != 0)
+            ++i;
+        }
+    }
+
+    return false;
+}
+
+
+std::vector<size_t>
+KMPMatcher::find_all(
+    std::string_view text) const
+{
+    std::vector<size_t> result;
+
+    if(pattern.empty())
+        return result;
+
+    size_t i = 0;
+    size_t j = 0;
+
+    const size_t n = text.size();
+    const size_t m = pattern.size();
+
+    while(i < n)
+    {
+        if(text[i] == pattern[j])
+        {
+            ++i;
+            ++j;
+
+            if(j == m)
+            {
+                result.push_back(i - m);
                 j = lps[j - 1];
-            else
-                i++;
+            }
+        }
+        else if(j)
+        {
+            j = lps[j - 1];
+        }
+        else
+        {
+            ++i;
         }
     }
 
     return result;
+}
+
+std::vector<size_t> search_kmp(
+    std::string_view text,
+    std::string_view pattern)
+{
+    std::string pattern_str(pattern);
+    KMPMatcher matcher(pattern_str);
+
+    return matcher.find_all(text);
 }

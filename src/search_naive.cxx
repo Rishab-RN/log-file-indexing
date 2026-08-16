@@ -1,26 +1,70 @@
 #include "search_naive.hxx"
 
-std::vector<size_t> search_naive(const std::string &str, const std::string &pattern)
+NaiveMatcher::NaiveMatcher(
+    const std::string& pattern)
+    : pattern(pattern)
 {
-    std::vector<size_t> indices;
+}
 
-    if(str.size() < pattern.size())
-        return indices;
+bool NaiveMatcher::contains(
+    std::string_view text) const
+{
+    if(pattern.empty())
+        return true;
 
-    for(size_t i = 0; i < (str.size() - pattern.size()) + 1; i++)
+    if(text.size() < pattern.size())
+        return false;
+
+    const size_t n = text.size();
+    const size_t m = pattern.size();
+
+    for(size_t i = 0; i <= n - m; ++i)
     {
         size_t j = 0;
 
-        while(j < pattern.size() && str[i + j] == pattern[j])
+        while(j < m &&
+              text[i + j] == pattern[j])
         {
-            j++;
+            ++j;
         }
 
-        if(j == pattern.size())
+        if(j == m)
+            return true;
+    }
+
+    return false;
+}
+
+std::vector<size_t>
+NaiveMatcher::find_all(
+    std::string_view text) const
+{
+    std::vector<size_t> result;
+
+    if(pattern.empty())
+        return result;
+
+    if(text.size() < pattern.size())
+        return result;
+
+    const size_t n = text.size();
+    const size_t m = pattern.size();
+
+    for(size_t i = 0; i <= n - m; ++i)
+    {
+        size_t j = 0;
+
+        while(j < m &&
+              text[i + j] == pattern[j])
         {
-            indices.push_back(i);
+            ++j;
+        }
+
+        if(j == m)
+        {
+            result.push_back(i);
         }
     }
 
-    return indices;
+    return result;
 }

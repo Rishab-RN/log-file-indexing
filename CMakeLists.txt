@@ -2,6 +2,13 @@ cmake_minimum_required(VERSION 3.23)
 
 project(log-file-indexing)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_BUILD_TYPE Release)
+
+find_package(SDL2 REQUIRED)
+find_package(OpenGL REQUIRED)
+
 add_library(config INTERFACE)
 
 target_sources(config INTERFACE
@@ -116,6 +123,20 @@ target_sources(Trie
             include/Trie.hxx
 )
 
+add_library(SegmentTree)
+
+target_sources(SegmentTree
+    PRIVATE
+        src/SegmentTree.cxx
+
+    PUBLIC
+        FILE_SET HEADERS
+        BASE_DIRS
+            include
+        FILES
+            include/SegmentTree.hxx
+)
+
 add_library(LogFile)
 
 target_sources(LogFile
@@ -149,18 +170,54 @@ add_executable(main)
 target_sources(main
     PRIVATE
         src/main.cxx
+
+        src/Application.cxx
+
+        src/SearchEngine.cxx
+        src/InvertedIndex.cxx
+        src/Trie.cxx
+        src/LogFile.cxx
+
+        external/imgui/imgui.cpp
+        external/imgui/imgui_draw.cpp
+        external/imgui/imgui_tables.cpp
+        external/imgui/imgui_widgets.cpp
+
+        external/imgui/backends/imgui_impl_sdl2.cpp
+        external/imgui/backends/imgui_impl_opengl3.cpp
+
+        src/search_naive.cxx
+        src/search_kmp.cxx
+        src/search_horspool.cxx
+        src/search_boyer_moore.cxx
 )
+
+target_include_directories(main
+    PRIVATE
+        include
+
+        external/imgui
+        external/imgui/backends
+)
+
+target_link_libraries(main 
+    PRIVATE
+        SDL2::SDL2
+        OpenGL::GL
+)
+
+if(WIN32)
+    target_link_libraries(main PRIVATE Comdlg32)
+endif()
 
 target_link_libraries(main
     PRIVATE
-    tokenize
-    InvertedIndex
-    search_naive
-    search_kmp
-    search_horspool
-    search_boyer_moore
+    SearchEngine
+)
+
+target_link_libraries(InvertedIndex
+    PRIVATE
     config
-    Trie
 )
 
 target_link_libraries(search_horspool 
@@ -178,5 +235,27 @@ target_link_libraries(SearchEngine
     LogFile
     InvertedIndex
     Trie
+    SegmentTree
     tokenize
+)
+
+# ── Regression test binary ────────────────────────────────────────────────
+# Links only SegmentTree (no SDL / ImGui / OpenGL) and runs headlessly.
+# Usage: .\build\test_formats.exe
+
+add_executable(test_formats)
+
+target_sources(test_formats
+    PRIVATE
+        src/test_formats.cxx
+)
+
+target_include_directories(test_formats
+    PRIVATE
+        include
+)
+
+target_link_libraries(test_formats
+    PRIVATE
+        SegmentTree
 )

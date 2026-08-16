@@ -17,7 +17,6 @@ class InvertedIndex
 {
 private:
     std::unordered_map<std::string, std::vector<size_t>> index;
-    std::unordered_map<std::string, std::unordered_set<size_t>> buffer;
 
 public:
     /**
@@ -31,7 +30,7 @@ public:
      *  Find the logIDs for a given token
      *  Returns an empty vector if not found. 
      */
-    const std::vector<size_t>& search(const std::string& token) const;
+    const std::vector<size_t> search(const std::string& token) const;
 
     /**
      *  intersect
